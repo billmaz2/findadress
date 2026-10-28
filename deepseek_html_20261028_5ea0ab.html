@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEO DETECTIVE · find the address on the map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #0b1a2e 0%, #1b2f46 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 12px;
+        }
+        .game-container {
+            background: rgba(22, 40, 62, 0.92);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 20px 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 215, 100, 0.2);
+            width: 100%;
+            max-width: 1000px;
+            color: #eef5ff;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+            border-bottom: 1px dashed #2f4b6e;
+            padding-bottom: 10px;
+        }
+        .balance-box {
+            background: #1e3a5a;
+            padding: 6px 18px;
+            border-radius: 60px;
+            border: 1px solid #ffd966;
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: #ffd966;
+            box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.3);
+        }
+        .timer-box {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: #102a40;
+            padding: 6px 18px;
+            border-radius: 40px;
+            border: 1px solid #5f9ea0;
+            color: #aad4ff;
+            font-variant-numeric: tabular-nums;
+            box-shadow: 0 0 12px #2d5f7a;
+        }
+        .timer-warning {
+            color: #ff8a8a;
+            border-color: #ff6b6b;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        .country-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #0b1e2d;
+            padding: 10px 16px;
+            border-radius: 60px;
+            margin-bottom: 10px;
+            border: 1px solid #315977;
+        }
+        .country-selector label {
+            font-weight: 600;
+            color: #b9d6ff;
+            margin-right: 4px;
+            font-size: 0.95rem;
+        }
+        select {
+            background: #1b354a;
+            border: 2px solid #3e6b8c;
+            border-radius: 40px;
+            padding: 8px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            outline: none;
+            cursor: pointer;
+            flex: 1;
+            min-width: 140px;
+        }
+        select:focus {
+            border-color: #ffd966;
+        }
+        .challenge-area {
+            background: #0d1f30;
+            border-radius: 24px;
+            padding: 12px 18px;
+            margin: 6px 0 12px 0;
+            border: 1px solid #2a4b6b;
+            box-shadow: inset 0 4px 12px rgba(0,0,0,0.6);
+        }
+        .address-clue {
+            font-size: 1.8rem;
+            font-weight: 800;
+            word-break: break-word;
+            text-align: center;
+            color: #ffecb3;
+            text-shadow: 0 2px 10px rgba(255, 200, 0, 0.5);
+            line-height: 1.2;
+        }
+        .city-state {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            font-size: 1.2rem;
+            color: #b0d4ff;
+            font-weight: 500;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .city-state span {
+            background: #142b3f;
+            padding: 4px 16px;
+            border-radius: 40px;
+            border: 1px solid #3e6b8c;
+        }
+        #map {
+            height: 320px;
+            width: 100%;
+            border-radius: 24px;
+            margin: 10px 0;
+            border: 2px solid #2a4b6b;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.7);
+            z-index: 1;
+        }
+        .leaflet-container {
+            background: #1a2f42;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        button {
+            background: #ffd966;
+            border: none;
+            border-radius: 60px;
+            padding: 14px 28px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            color: #0b1a2e;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 6px 0 #b38f40;
+            transform: translateY(0);
+            border: 1px solid #ffe9a7;
+            flex: 1;
+            min-width: 120px;
+        }
+        button:active {
+            transform: translateY(5px);
+            box-shadow: 0 1px 0 #b38f40;
+        }
+        button:disabled {
+            opacity: 0.4;
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #6b5a2e;
+            pointer-events: none;
+            filter: grayscale(0.6);
+        }
+        .status-message {
+            font-weight: 500;
+            color: #ffb86b;
+            text-align: center;
+            min-height: 1.8rem;
+            margin: 8px 0 0;
+            font-size: 0.98rem;
+        }
+        .history-panel {
+            margin-top: 14px;
+            background: #081520;
+            border-radius: 20px;
+            padding: 10px 14px;
+            max-height: 130px;
+            overflow-y: auto;
+            border: 1px solid #203b4f;
+            font-size: 0.88rem;
+        }
+        .history-title {
+            font-weight: 700;
+            color: #ffd966;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+        .history-log {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: #b8d0e7;
+        }
+        .log-entry {
+            border-left: 4px solid #3e6b8c;
+            padding-left: 10px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.82rem;
+            word-break: break-word;
+        }
+        .log-win { border-left-color: #6fcf97; color: #b8f0c8; }
+        .log-loss { border-left-color: #eb5757; color: #ffb4b4; }
+        .log-info { border-left-color: #ffd966; color: #f9e6b3; }
+        .gameover-badge {
+            background: #2b1e1e;
+            border: 2px solid #eb5757;
+            border-radius: 60px;
+            padding: 10px 18px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #ffb4b4;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+        .hidden { display: none; }
+        .leaflet-control-attribution { font-size: 8px !important; background: rgba(0,0,0,0.5) !important; color: #ccc !important; }
+        .leaflet-control-attribution a { color: #ffd966 !important; }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="header">
+        <div class="balance-box">💰 <span id="balanceDisplay">100</span> €</div>
+        <div class="timer-box" id="timerDisplay">⏳ 00:30</div>
+    </div>
+
+    <div class="country-selector">
+        <label for="countrySelect">🌍 State / Country:</label>
+        <select id="countrySelect"></select>
+    </div>
+
+    <div class="challenge-area">
+        <div class="address-clue" id="addressClue">—</div>
+        <div class="city-state">
+            <span id="cityClue">—</span>
+            <span id="stateClue">—</span>
+        </div>
+    </div>
+
+    <!-- MAP CONTAINER -->
+    <div id="map"></div>
+
+    <div class="controls">
+        <button id="guessBtn" disabled>📍 CHECK MARKER</button>
+        <button id="newRoundBtn">🔄 NEW ROUND</button>
+    </div>
+
+    <div class="status-message" id="statusMessage">Select a country and press NEW ROUND. Place the marker on the exact address.</div>
+
+    <div class="history-panel">
+        <div class="history-title">
+            <span>📋 RECORD OF STATES</span>
+            <span id="historyCounter">0 rounds</span>
+        </div>
+        <div class="history-log" id="historyLog"></div>
+    </div>
+
+    <div id="gameOverBox" class="gameover-badge hidden">💔 GAME OVER — balance depleted</div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    (function() {
+        // ---------- LOCATION DATA (built-in, real coordinates) ----------
+        // Many real addresses across Greece and a few other countries.
+        const LOCATIONS = {
+            "Greece": [
+                { address: "Acropolis of Athens", city: "Athens", state: "Attica", lat: 37.9715, lng: 23.7257 },
+                { address: "White Tower of Thessaloniki", city: "Thessaloniki", state: "Central Macedonia", lat: 40.6264, lng: 22.9480 },
+                { address: "Palace of Knossos", city: "Heraklion", state: "Crete", lat: 35.2980, lng: 25.1630 },
+                { address: "Old Town of Corfu", city: "Corfu", state: "Ionian Islands", lat: 39.6243, lng: 19.9217 },
+                { address: "Temple of Apollo", city: "Delphi", state: "Central Greece", lat: 38.4824, lng: 22.5010 },
+                { address: "Meteora Monasteries", city: "Kalambaka", state: "Thessaly", lat: 39.7217, lng: 21.6303 },
+                { address: "Ancient Olympia", city: "Olympia", state: "West Greece", lat: 37.6383, lng: 21.6300 },
+                { address: "Epidaurus Theatre", city: "Epidaurus", state: "Peloponnese", lat: 37.5963, lng: 23.0790 },
+                { address: "Monemvasia Castle", city: "Monemvasia", state: "Peloponnese", lat: 36.6873, lng: 23.0544 },
+                { address: "Mykonos Windmills", city: "Mykonos", state: "South Aegean", lat: 37.4467, lng: 25.3289 },
+                { address: "Oia Sunset Point", city: "Oia, Santorini", state: "South Aegean", lat: 36.4618, lng: 25.3753 },
+                { address: "Rhodes Old Town", city: "Rhodes", state: "South Aegean", lat: 36.4349, lng: 28.2176 },
+                { address: "Nafplio Old Town", city: "Nafplio", state: "Peloponnese", lat: 37.5675, lng: 22.8011 },
+                { address: "Mount Olympus", city: "Litochoro", state: "Central Macedonia", lat: 40.0859, lng: 22.3583 },
+                { address: "Lake Pamvotida", city: "Ioannina", state: "Epirus", lat: 39.6636, lng: 20.8680 }
+            ],
+            "USA": [
+                { address: "1600 Pennsylvania Avenue NW", city: "Washington", state: "DC", lat: 38.8977, lng: -77.0365 },
+                { address: "4059 Mt Lee Dr", city: "Hollywood", state: "CA", lat: 34.1341, lng: -118.3217 },
+                { address: "11 Wall Street", city: "New York", state: "NY", lat: 40.7069, lng: -74.0113 },
+                { address: "600 17th Street", city: "Denver", state: "CO", lat: 39.7426, lng: -104.9915 },
+                { address: "1 Infinite Loop", city: "Cupertino", state: "CA", lat: 37.3318, lng: -122.0312 },
+                { address: "350 Fifth Avenue", city: "New York", state: "NY", lat: 40.7484, lng: -73.9857 },
+                { address: "4 Yawkey Way", city: "Boston", state: "MA", lat: 42.3467, lng: -71.0972 }
+            ],
+            "UK": [
+                { address: "10 Downing Street", city: "London", state: "England", lat: 51.5033, lng: -0.1276 },
+                { address: "221B Baker Street", city: "London", state: "England", lat: 51.5237, lng: -0.1585 },
+                { address: "King's College, King's Parade", city: "Cambridge", state: "England", lat: 52.2049, lng: 0.1170 },
+                { address: "Princes Street", city: "Edinburgh", state: "Scotland", lat: 55.9533, lng: -3.1883 },
+                { address: "1 Victoria Square", city: "Belfast", state: "Northern Ireland", lat: 54.5973, lng: -5.9301 },
+                { address: "St Mary's Street", city: "Cardiff", state: "Wales", lat: 51.4816, lng: -3.1791 }
+            ],
+            "Germany": [
+                { address: "Platz der Republik 1", city: "Berlin", state: "Berlin", lat: 52.5200, lng: 13.3777 },
+                { address: "Marienplatz 1", city: "Munich", state: "Bavaria", lat: 48.1374, lng: 11.5755 },
+                { address: "Königsallee 2", city: "Düsseldorf", state: "North Rhine-Westphalia", lat: 51.2277, lng: 6.7735 },
+                { address: "Römerberg 26", city: "Frankfurt", state: "Hesse", lat: 50.1109, lng: 8.6821 },
+                { address: "Alter Markt 1", city: "Cologne", state: "North Rhine-Westphalia", lat: 50.9375, lng: 6.9603 }
+            ],
+            "France": [
+                { address: "5 Avenue Anatole France", city: "Paris", state: "Île-de-France", lat: 48.8584, lng: 2.2945 },
+                { address: "29 Rue de Rivoli", city: "Paris", state: "Île-de-France", lat: 48.8606, lng: 2.3376 },
+                { address: "2 Place du Panthéon", city: "Paris", state: "Île-de-France", lat: 48.8462, lng: 2.3464 },
+                { address: "Promenade des Anglais", city: "Nice", state: "Provence-Alpes-Côte d'Azur", lat: 43.6959, lng: 7.2653 },
+                { address: "Rue de la République", city: "Lyon", state: "Auvergne-Rhône-Alpes", lat: 45.7640, lng: 4.8357 }
+            ],
+            "Australia": [
+                { address: "Bennelong Point", city: "Sydney", state: "NSW", lat: -33.8568, lng: 151.2153 },
+                { address: "100 St Kilda Road", city: "Melbourne", state: "VIC", lat: -37.8183, lng: 144.9700 },
+                { address: "1 Macquarie Street", city: "Sydney", state: "NSW", lat: -33.8620, lng: 151.2120 },
+                { address: "North Terrace", city: "Adelaide", state: "SA", lat: -34.9200, lng: 138.6000 },
+                { address: "Kings Park Road", city: "Perth", state: "WA", lat: -31.9505, lng: 115.8605 }
+            ]
+        };
+
+        // ---------- GAME STATE ----------
+        let balance = 100;
+        let currentCountry = null;
+        let currentLocation = null;
+        let roundActive = false;
+        let timerInterval = null;
+        let timeLeft = 30;
+        const ROUND_DURATION = 30;
+        let history = [];
+
+        // Map stuff
+        let map = null;
+        let marker = null;         // user marker
+        let targetMarker = null;   // correct location marker (shown after guess)
+
+        // DOM
+        const balanceDisplay = document.getElementById('balanceDisplay');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const addressClue = document.getElementById('addressClue');
+        const cityClue = document.getElementById('cityClue');
+        const stateClue = document.getElementById('stateClue');
+        const guessBtn = document.getElementById('guessBtn');
+        const newRoundBtn = document.getElementById('newRoundBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const countrySelect = document.getElementById('countrySelect');
+        const historyLog = document.getElementById('historyLog');
+        const historyCounter = document.getElementById('historyCounter');
+        const gameOverBox = document.getElementById('gameOverBox');
+
+        // ---------- MAP INIT ----------
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([38.5, 23.5], 6); // Centered on Greece by default
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18,
+                minZoom: 2
+            }).addTo(map);
+
+            // Click event: place/move marker
+            map.on('click', function(e) {
+                if (!roundActive) return;
+                const { lat, lng } = e.latlng;
+                placeUserMarker(lat, lng);
+            });
+        }
+
+        function placeUserMarker(lat, lng) {
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng], {
+                    draggable: true,
+                    icon: L.divIcon({ className: 'custom-icon', html: '📍', iconSize: [30, 30], iconAnchor: [15, 30] })
+                }).addTo(map);
+            }
+        }
+
+        function clearUserMarker() {
+            if (marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+        }
+
+        // fly to target on new round
+        function flyToTarget(location) {
+            if (map && location) {
+                map.flyTo([location.lat, location.lng], 13, { duration: 1.2 });
+            }
+        }
+
+        // ---------- UI HELPERS ----------
+        function updateBalanceUI() {
+            balanceDisplay.textContent = balance;
+        }
+
+        function updateTimerUI() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            timerDisplay.textContent = `⏳ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            timerDisplay.classList.toggle('timer-warning', timeLeft <= 10);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function startTimer(seconds) {
+            stopTimer();
+            timeLeft = seconds;
+            updateTimerUI();
+            timerInterval = setInterval(() => {
+                timeLeft -= 1;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    stopTimer();
+                    if (roundActive) {
+                        handleLoss('⏰ Time ran out!');
+                    }
+                }
+            }, 1000);
+        }
+
+        function addHistory(text, type = 'info') {
+            history.push({ text, type });
+            if (history.length > 50) history.shift();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyCounter.textContent = `${history.length} round${history.length !== 1 ? 's' : ''}`;
+            historyLog.innerHTML = '';
+            history.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = `log-entry log-${entry.type}`;
+                div.textContent = entry.text;
+                historyLog.appendChild(div);
+            });
+            historyLog.parentElement.scrollTop = historyLog.parentElement.scrollHeight;
+        }
+
+        function clearRoundUI() {
+            addressClue.textContent = '—';
+            cityClue.textContent = '—';
+            stateClue.textContent = '—';
+            guessBtn.disabled = true;
+            clearUserMarker();
+        }
+
+        function checkGameOver() {
+            if (balance <= 0) {
+                stopTimer();
+                roundActive = false;
+                guessBtn.disabled = true;
+                newRoundBtn.disabled = true;
+                gameOverBox.classList.remove('hidden');
+                statusMessage.textContent = 'Game over. No more money.';
+                addHistory('💔 GAME OVER — balance zero', 'loss');
+                countrySelect.disabled = true;
+                return true;
+            }
+            return false;
+        }
+
+        // Haversine distance in meters
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function handleLoss(reason = 'Wrong location') {
+            if (!roundActive) return;
+            stopTimer();
+            roundActive = false;
+
+            balance = Math.max(0, balance - 10);
+            updateBalanceUI();
+
+            const loc = currentLocation;
+            addHistory(`❌ LOSS (${reason}) — correct: ${loc.address}, ${loc.city}, ${loc.state}  (-10€)`, 'loss');
+            statusMessage.textContent = `❌ Lost 10€. The address was ${loc.address}, ${loc.city}, ${loc.state}.`;
+
+            guessBtn.disabled = true;
+            clearUserMarker();
+
+            // Show correct location
+            if (targetMarker) map.removeLayer(targetMarker);
+            targetMarker = L.marker([loc.lat, loc.lng], {
+                icon: L.divIcon({ className: 'target-icon', html: '🎯', iconSize: [30, 30], iconAnchor: [15, 30] })
+            }).addTo(map);
+
+            checkGameOver();
+            if (balance > 0) statusMessage.textContent += ' — press NEW ROUND';
+        }
+
+        function handleWin(distanceMeters) {
+            if (!roundActive) return;
+            stopTimer();
+            roundActive = false;
+
+            balance += 20;
+            updateBalanceUI();
+
+            const loc = currentLocation;
+            const distText = distanceMeters < 1000 ? `${Math.round(distanceMeters)}m` : `${(distanceMeters/1000).toFixed(1)}km`;
+            addHistory(`✅ WIN! Guessed "${loc.address}" (${distText} away)  (+20€)`, 'win');
+            statusMessage.textContent = `✅ CORRECT! You earned 20€. Distance: ${distText}. Balance: ${balance}€`;
+
+            guessBtn.disabled = true;
+
+            if (targetMarker) map.removeLayer(targetMarker);
+            targetMarker = L.marker([loc.lat, loc.lng], {
+                icon: L.divIcon({ className: 'target-icon', html: '🎯', iconSize: [30, 30], iconAnchor: [15, 30] })
+            }).addTo(map);
+        }
+
+        function startNewRound() {
+            if (balance <= 0) {
+                checkGameOver();
+                return;
+            }
+
+            stopTimer();
+            if (roundActive) roundActive = false;
+
+            clearUserMarker();
+            if (targetMarker) {
+                map.removeLayer(targetMarker);
+                targetMarker = null;
+            }
+
+            const country = countrySelect.value;
+            if (!country || !LOCATIONS[country] || LOCATIONS[country].length === 0) {
+                statusMessage.textContent = '⚠️ No locations for this country.';
+                return;
+            }
+
+            currentCountry = country;
+            const locationsArray = LOCATIONS[country];
+            const randomIndex = Math.floor(Math.random() * locationsArray.length);
+            currentLocation = { ...locationsArray[randomIndex] };
+
+            addressClue.textContent = currentLocation.address;
+            cityClue.textContent = `🏙️ ${currentLocation.city}`;
+            stateClue.textContent = `📍 ${currentLocation.state}`;
+
+            guessBtn.disabled = false;
+            roundActive = true;
+            startTimer(ROUND_DURATION);
+            statusMessage.textContent = `📍 Place the marker on "${currentLocation.address}" in ${currentLocation.city} (${ROUND_DURATION}s)`;
+            addHistory(`▶️ NEW ROUND: ${country} — target: ${currentLocation.address} (${currentLocation.city}, ${currentLocation.state})`, 'info');
+
+            flyToTarget(currentLocation);
+
+            if (balance > 0) {
+                newRoundBtn.disabled = false;
+                countrySelect.disabled = false;
+            }
+        }
+
+        function checkGuess() {
+            if (!roundActive || !currentLocation) return;
+
+            if (!marker) {
+                statusMessage.textContent = '📍 Click on the map to place your marker first.';
+                return;
+            }
+
+            const userLatLng = marker.getLatLng();
+            const distance = haversineDistance(
+                userLatLng.lat, userLatLng.lng,
+                currentLocation.lat, currentLocation.lng
+            );
+
+            const SUCCESS_DISTANCE = 200; // meters
+
+            if (distance <= SUCCESS_DISTANCE) {
+                handleWin(distance);
+            } else {
+                handleLoss(`Marker ${Math.round(distance)}m away`);
+            }
+        }
+
+        function populateCountries() {
+            countrySelect.innerHTML = '';
+            Object.keys(LOCATIONS).forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countrySelect.appendChild(option);
+            });
+            // Default to Greece
+            const greeceIndex = Array.from(countrySelect.options).findIndex(opt => opt.value === 'Greece');
+            if (greeceIndex >= 0) countrySelect.selectedIndex = greeceIndex;
+        }
+
+        function fullReset() {
+            stopTimer();
+            balance = 100;
+            updateBalanceUI();
+            roundActive = false;
+            currentCountry = null;
+            currentLocation = null;
+            timeLeft = ROUND_DURATION;
+            updateTimerUI();
+            clearRoundUI();
+            gameOverBox.classList.add('hidden');
+            countrySelect.disabled = false;
+            newRoundBtn.disabled = false;
+            guessBtn.disabled = true;
+            statusMessage.textContent = 'Select a country and press NEW ROUND. Place the marker on the exact address.';
+            history = [];
+            renderHistory();
+            if (targetMarker) {
+                map.removeLayer(targetMarker);
+                targetMarker = null;
+            }
+            if (map) map.setView([38.5, 23.5], 6); // Greece view
+        }
+
+        function init() {
+            initMap();
+            populateCountries();
+            fullReset();
+
+            newRoundBtn.addEventListener('click', () => {
+                if (balance <= 0) {
+                    checkGameOver();
+                    return;
+                }
+                startNewRound();
+            });
+
+            guessBtn.addEventListener('click', checkGuess);
+            checkGameOver();
+        }
+
+        window.addEventListener('load', init);
+    })();
+</script>
+</body>
+</html>
